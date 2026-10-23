@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>てしごと部屋</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e9eff3;
+    --surface: #ffffff;
+    --ink: #1d2b36;
+    --sub: #5d6f7c;
+    --line: #cfdae2;
+    --mine: #3b4ba3;
+    --mine-ink: #ffffff;
+    --accent: #f2b84b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14202a; --surface: #1e2d39; --ink: #e8eef2; --sub: #93a6b3;
+      --line: #2e4252; --mine: #5a6bd0; --mine-ink: #ffffff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6;
+  }
+  button, input { font: inherit; }
+  #app { max-width: 560px; height: 100%; margin: 0 auto; display: flex; flex-direction: column; background: var(--bg); }
+  header {
+    display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 1.1rem; margin: 0; flex: 1; }
+  .link { background: none; border: 0; color: var(--mine); cursor: pointer; padding: 6px; font-weight: 700; }
+  .link:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+  .hidden { display: none !important; }
+
+  /* ログイン */
+  .auth { max-width: 360px; margin: 8vh auto 0; }
+  .auth h2 { font-size: 1.5rem; margin: 0 0 4px; }
+  .auth p { color: var(--sub); margin: 0 0 20px; }
+  label { display: block; font-weight: 700; margin: 12px 0 4px; font-size: .9rem; }
+  input[type=text], input[type=email], input[type=password] {
+    width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); color: var(--ink);
+  }
+  .primary {
+    width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: 10px;
+    background: var(--mine); color: var(--mine-ink); font-weight: 700; cursor: pointer;
+  }
+  .err { color: #c0392b; min-height: 1.5em; margin-top: 8px; font-size: .9rem; }
+
+  /* 部屋一覧 */
+  .room {
+    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+    padding: 14px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .room .emoji { font-size: 1.8rem; width: 44px; text-align: center; }
+  .room b { display: block; }
+  .room span { color: var(--sub); font-size: .85rem; }
+
+  /* チャット */
+  #chat { display: flex; flex-direction: column; height: 100%; }
+  .hint { background: var(--accent); color: #1d2b36; padding: 8px 16px; font-size: .85rem; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 78%; display: flex; flex-direction: column; }
+  .msg .name { font-size: .75rem; color: var(--sub); margin: 0 6px 2px; }
+  .msg .bubble { padding: 9px 13px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); word-break: break-word; white-space: pre-wrap; }
+  .msg .time { font-size: .7rem; color: var(--sub); margin: 2px 6px 0; }
+  .msg.mine { align-self: flex-end; align-items: flex-end; }
+  .msg.mine .bubble { background: var(--mine); color: var(--mine-ink); border-color: var(--mine); }
+  .empty { color: var(--sub); text-align: center; margin-top: 30px; }
+  form.send { display: flex; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--line); }
+  form.send input { flex: 1; border-radius: 999px; padding: 10px 16px; }
+  form.send button { border: 0; border-radius: 999px; padding: 0 18px; background: var(--mine); color: var(--mine-ink); font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="back" class="link hidden" aria-label="部屋一覧に戻る">‹ 戻る</button>
+    <h1 id="title">てしごと部屋</h1>
+    <button id="logout" class="link hidden">ログアウト</button>
+  </header>
+
+  <!-- ログイン -->
+  <main id="authView">
+    <div class="auth">
+      <h2>スマホを置いて、手を動かそう</h2>
+      <p>折り紙・けん玉・絵描き。やってみたことを、ここで見せ合おう。</p>
+      <div id="nameRow" class="hidden">
+        <label for="dname">表示名</label>
+        <input id="dname" type="text" maxlength="20" placeholder="例: はる">
+      </div>
+      <label for="email">メールアドレス</label>
+      <input id="email" type="email" autocomplete="email">
+      <label for="pass">パスワード(6文字以上)</label>
+      <input id="pass" type="password" autocomplete="current-password">
+      <button id="authBtn" class="primary">ログイン</button>
+      <div id="authErr" class="err" role="alert"></div>
+      <button id="toggleMode" class="link">はじめての人はこちら(新規登録)</button>
+    </div>
+  </main>
+
+  <!-- 部屋一覧 -->
+  <main id="roomsView" class="hidden"></main>
+
+  <!-- チャット -->
+  <section id="chat" class="hidden">
+    <div class="hint">やってみたことを報告しよう。会話より「今日これをやった」が主役です。</div>
+    <div id="messages"></div>
+    <form class="send" id="sendForm">
+      <input id="msgInput" type="text" maxlength="1000" placeholder="今日やったことを書く" autocomplete="off" aria-label="メッセージ">
+      <button type="submit">送信</button>
+    </form>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  // ▼ ここを自分たちのSupabaseの値に書き換える(Project Settings → API)
+  const SUPABASE_URL = "https://qqcblpkmbeilcxsmsqui.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxY2JscGttYmVpbGN4c21zcXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MzA1ODcsImV4cCI6MjEwODMwNjU4N30.jP0huW53M1w5h-1WoZnz45j9Dlov8sv1CKQoB2gyXU4";
+  // ▲ service_role キーは絶対に入れない
+
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = (id) => document.getElementById(id);
+
+  let me = null;            // ログイン中のユーザー
+  let signUpMode = false;
+  let currentRoom = null;
+  let channel = null;
+  let shownIds = new Set();
+
+  function show(view) {
+    for (const v of ["authView", "roomsView", "chat"]) $(v).classList.toggle("hidden", v !== view);
+    $("back").classList.toggle("hidden", view !== "chat");
+    $("logout").classList.toggle("hidden", view === "authView");
+    if (view !== "chat") $("title").textContent = "てしごと部屋";
+  }
+
+  // ---------- ログイン / 新規登録 ----------
+  $("toggleMode").onclick = () => {
+    signUpMode = !signUpMode;
+    $("nameRow").classList.toggle("hidden", !signUpMode);
+    $("authBtn").textContent = signUpMode ? "登録して始める" : "ログイン";
+    $("toggleMode").textContent = signUpMode ? "すでに登録済みの人はこちら(ログイン)" : "はじめての人はこちら(新規登録)";
+    $("authErr").textContent = "";
+  };
+
+  $("authBtn").onclick = async () => {
+    const email = $("email").value.trim();
+    const password = $("pass").value;
+    $("authErr").textContent = "";
+    if (!email || password.length < 6) { $("authErr").textContent = "メールアドレスと、6文字以上のパスワードを入力してください。"; return; }
+    let res;
+    if (signUpMode) {
+      const name = $("dname").value.trim();
+      if (!name) { $("authErr").textContent = "表示名を入力してください。"; return; }
+      res = await db.auth.signUp({ email, password, options: { data: { display_name: name } } });
+    } else {
+      res = await db.auth.signInWithPassword({ email, password });
+    }
+    if (res.error) { $("authErr").textContent = "うまくいきませんでした: " + res.error.message; return; }
+    if (!res.data.session) { $("authErr").textContent = "確認メールを送りました。メール内のリンクを開いてからログインしてください。"; return; }
+    await enter(res.data.session.user);
+  };
+
+  $("logout").onclick = async () => { await db.auth.signOut(); leaveRoom(); me = null; show("authView"); };
+
+  async function enter(user) {
+    me = user;
+    await loadRooms();
+    show("roomsView");
+  }
+
+  // ---------- 部屋一覧 ----------
+  async function loadRooms() {
+    const { data, error } = await db.from("rooms").select("*").order("id");
+    const box = $("roomsView");
+    box.innerHTML = "";
+    if (error) { box.innerHTML = '<p class="empty">部屋を読み込めませんでした。SQLの実行を確認してください。</p>'; return; }
+    for (const r of data) {
+      const b = document.createElement("button");
+      b.className = "room";
+      b.innerHTML = '<span class="emoji"></span><div><b></b><span></span></div>';
+      b.querySelector(".emoji").textContent = r.emoji || "🧶";
+      b.querySelector("b").textContent = r.name;
+      b.querySelector("div span").textContent = r.description || "";
+      b.onclick = () => openRoom(r);
+      box.appendChild(b);
+    }
+  }
+
+  // ---------- チャット ----------
+  function addMessage(m) {
+    if (shownIds.has(m.id)) return;
+    shownIds.add(m.id);
+    const box = $("messages");
+    const empty = box.querySelector(".empty");
+    if (empty) empty.remove();
+    const wrap = document.createElement("div");
+    wrap.className = "msg" + (m.user_id === me.id ? " mine" : "");
+    const name = document.createElement("div"); name.className = "name"; name.textContent = m.display_name;
+    const bubble = document.createElement("div"); bubble.className = "bubble"; bubble.textContent = m.content;
+    const time = document.createElement("div"); time.className = "time";
+    time.textContent = new Date(m.created_at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+    if (m.user_id !== me.id) wrap.appendChild(name);
+    wrap.appendChild(bubble); wrap.appendChild(time);
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function openRoom(room) {
+    currentRoom = room;
+    shownIds = new Set();
+    $("title").textContent = (room.emoji || "") + " " + room.name;
+    $("messages").innerHTML = '<p class="empty">まだ投稿がありません。最初の一言をどうぞ。</p>';
+    show("chat");
+
+    const { data } = await db.from("messages").select("*").eq("room_id", room.id).order("created_at").limit(200);
+    (data || []).forEach(addMessage);
+
+    channel = db.channel("room-" + room.id)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "room_id=eq." + room.id },
+          (payload) => addMessage(payload.new))
+      .subscribe();
+  }
+
+  function leaveRoom() {
+    if (channel) { db.removeChannel(channel); channel = null; }
+    currentRoom = null;
+  }
+
+  $("back").onclick = () => { leaveRoom(); show("roomsView"); };
+
+  $("sendForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const text = $("msgInput").value.trim();
+    if (!text || !currentRoom) return;
+    $("msgInput").value = "";
+    const { data, error } = await db.from("messages").insert({
+      room_id: currentRoom.id,
+      content: text,
+      display_name: me.user_metadata.display_name || "名無し"
+    }).select().single();
+    if (error) { alert("送信できませんでした: " + error.message); $("msgInput").value = text; return; }
+    addMessage(data);
+  };
+
+  // ---------- 起動時 ----------
+  (async () => {
+    const { data } = await db.auth.getSession();
+    if (data.session) await enter(data.session.user);
+    else show("authView");
+  })();
+</script>
+</body>
+</html>
